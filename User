@@ -1,0 +1,76 @@
+// Funkcja do pobrania wszystkich użytkowników z paginacją
+async function getUserWithPagination() {
+    let offset = 0;
+    let totalCount = 0;
+    let allUsers = [];
+    const pageLimit = 100; // Przykładowy limit na stronę
+
+    do {
+        const response = await axios.get(`${redmineURL}/projects/10/memberships.json?limit=${pageLimit}&offset=${offset}`, {
+            method: 'get',
+            headers: {
+                'X-Redmine-API-Key': apiKey,
+                'X-API-VERSION': 1,
+                'Content-Type': 'application/json'
+            },
+        });
+
+        if (response.status !== 200) {
+            console.error(`Błąd HTTP status: ${response.status}`);
+            break;
+        }
+
+        const data = await response.data;
+        totalCount = data.total_count;
+        allUsers = allUsers.concat(data.memberships); // Dodanie użytkowników do listy
+        offset += pageLimit;
+    } while (allUsers.length < totalCount);
+
+    return allUsers;
+}
+
+// Funkcja sprawdzająca, czy użytkownik jest aktywny
+async function checkUserIsActive(userId) {
+    try {
+        const usersResponse = await axios.get(`${redmineURL}/users/${userId}.json`, {
+            method: 'get',
+            headers: {
+                'X-Redmine-API-Key': apiKey,
+                'X-API-VERSION': 1,
+                'Content-Type': 'application/json'
+            },
+        });
+
+        const activeUser = usersResponse.data.user.status;
+        // Zakładamy, że status 1 oznacza aktywnego użytkownika (sprawdź w dokumentacji API Redmine)
+        if (activeUser === 1) {
+            return usersResponse.data.user; // Zwracamy aktywnego użytkownika
+        } else {
+            return null; // Użytkownik nieaktywny
+        }
+    } catch (error) {
+        console.error(`Błąd podczas sprawdzania statusu użytkownika: ${error}`);
+        return null;
+    }
+}
+
+// Główna funkcja pobierająca aktywnych użytkowników
+async function getActiveUsers() {
+    const allUsers = await getUserWithPagination();
+    
+    // Sprawdzamy aktywność każdego użytkownika
+    const activeUsersPromises = allUsers.map(async (user) => {
+        const activeUser = await checkUserIsActive(user.user.id); // Sprawdzamy status użytkownika
+        return activeUser; // Zwracamy aktywnego lub null
+    });
+
+    const activeUsers = await Promise.all(activeUsersPromises); // Czekamy na wszystkie wyniki
+    return activeUsers.filter(user => user !== null); // Filtrujemy aktywnych użytkowników
+}
+
+// Wywołanie głównej funkcji
+getActiveUsers().then((activeUsers) => {
+    console.log('Aktywni użytkownicy:', activeUsers);
+}).catch((error) => {
+    console.error('Błąd podczas pobierania aktywnych użytkowników:', error);
+});
