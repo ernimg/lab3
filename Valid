@@ -1,0 +1,62 @@
+const express = require('express');
+const multer = require('multer');
+const XLSX = require('xlsx');
+const app = express();
+const upload = multer({ dest: 'uploads/' }); // folder, gdzie tymczasowo zapisywane są pliki
+
+// Funkcja do walidacji pliku Excel
+const validateExcelFile = (filePath, requiredColumns, maxRows) => {
+    // Wczytanie pliku
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]; // zakładamy, że pracujemy na pierwszym arkuszu
+    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // konwersja do JSON
+
+    // Sprawdzenie, czy plik zawiera wymagane kolumny
+    const header = jsonData[0];
+    const missingColumns = requiredColumns.filter(col => !header.includes(col));
+    if (missingColumns.length > 0) {
+        return `Brakujące kolumny: ${missingColumns.join(', ')}`;
+    }
+
+    // Sprawdzenie liczby wierszy
+    if (jsonData.length - 1 > maxRows) { // odjęcie 1, bo pierwszy wiersz to nagłówki
+        return `Plik zawiera za dużo wierszy. Maksymalna liczba to ${maxRows}`;
+    }
+
+    // Sprawdzenie, czy wartości są tekstowe, a nie formułami
+    for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        for (const cell of row) {
+            if (typeof cell === 'string' && cell.startsWith('=')) {
+                return `Wiersz ${i + 1} zawiera formułę w komórce: ${cell}`;
+            }
+        }
+    }
+
+    return null; // brak błędów, walidacja zakończona pomyślnie
+};
+
+// Endpoint do walidacji pliku
+app.post('/validate', upload.single('file'), (req, res) => {
+    const { columns, maxRows } = req.body; // Pobranie kolumn i maksymalnej liczby wierszy z body
+    const requiredColumns = columns.split(';'); // Rozdzielenie kolumn na tablicę
+
+    // Sprawdzenie, czy plik został przesłany
+    if (!req.file) {
+        return res.status(400).json({ error: 'Brak pliku' });
+    }
+
+    // Walidacja pliku
+    const errorMessage = validateExcelFile(req.file.path, requiredColumns, parseInt(maxRows, 10));
+    if (errorMessage) {
+        return res.status(400).json({ error: errorMessage });
+    }
+
+    res.status(200).json({ message: 'Plik przeszedł walidację pomyślnie' });
+});
+
+// Uruchomienie serwera
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Serwer działa na porcie ${PORT}`);
+});
