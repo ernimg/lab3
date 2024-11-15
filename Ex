@@ -1,0 +1,57 @@
+<template>
+  <div class="table-container">
+    <!-- Pierwszy wiersz z dynamicznie generowanymi nagłówkami -->
+    <div class="row header-row">
+      <div v-for="(header, index) in dynamicHeaders" :key="'header-' + index" class="cell header-cell">
+        {{ header }}
+      </div>
+    </div>
+    
+    <!-- Drugi wiersz z danymi z tablicy -->
+    <div class="row data-row">
+      <div v-for="(item, index) in data" :key="'data-' + index" class="cell">
+        {{ item }}
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      data: ["aaa", "bbb", "ccc", "ddd"] // Dane do wyświetlenia w drugim wierszu
+    };
+  },
+  computed: {
+    // Funkcja generująca nagłówki na podstawie ilości elementów w `data`
+    dynamicHeaders() {
+      return this.data.map((_, index) => String.fromCharCode(65 + index));
+    }
+  }
+};
+</script>
+
+<style>
+.table-container {
+  display: flex;
+  flex-direction: column;
+  max-width: 300px; /* Zmienna szerokość dla tabeli */
+}
+
+.row {
+  display: flex;
+}
+
+.cell {
+  width: 100px; /* Ustalona szerokość komórki */
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.header-row {
+  font-weight: bold;
+  background-color: #f0f0f0; /* Kolor tła dla nagłówków */
+}
+</style>
