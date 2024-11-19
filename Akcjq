@@ -1,0 +1,36 @@
+// stores/fileStore.js
+import { defineStore } from 'pinia';
+
+export const useFileStore = defineStore('fileStore', {
+  state: () => ({
+    isMoving: false, // Flaga informująca o trwającej operacji
+    moveSuccess: false, // Flaga sukcesu
+    error: null, // Informacja o błędach
+  }),
+  actions: {
+    async moveFile(redmineId, fileName) {
+      this.isMoving = true;
+      this.moveSuccess = false;
+      this.error = null;
+
+      try {
+        const response = await fetch(`http://localhost:3000/move/${redmineId}/${fileName}`, {
+          method: 'POST',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Błąd serwera: ${response.statusText}`);
+        }
+
+        const data = await response.text(); // Odczyt odpowiedzi serwera
+        this.moveSuccess = true; // Oznaczamy sukces
+        console.log('Odpowiedź serwera:', data);
+      } catch (err) {
+        this.error = err.message || 'Nieznany błąd podczas przenoszenia pliku';
+        console.error('Błąd:', this.error);
+      } finally {
+        this.isMoving = false; // Operacja zakończona
+      }
+    },
+  },
+});
