@@ -1,27 +1,29 @@
 const express = require('express');
-const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const port = 3000;
 
-// Konfiguracja multer do obsługi przesyłania plików
-const upload = multer({ dest: 'uploads/' }); // Tymczasowy folder przechowywania plików
+// Endpoint do zmiany nazwy i przeniesienia pliku
+app.post('/move/:redmineId/:fileName', (req, res) => {
+    const { redmineId, fileName } = req.params;
 
-// Endpoint do przesyłania i przenoszenia plików
-app.post('/upload', upload.single('file'), (req, res) => {
-    const file = req.file;
+    // Ścieżka do obecnego folderu tymczasowego, gdzie znajduje się plik
+    const tempDir = 'C:/temp'; // Zmień na odpowiedni folder tymczasowy
+    const sourcePath = path.join(tempDir, fileName);
 
-    if (!file) {
-        return res.status(400).send('Nie przesłano żadnego pliku.');
+    // Sprawdzamy, czy plik istnieje
+    if (!fs.existsSync(sourcePath)) {
+        return res.status(404).send(`Plik ${fileName} nie został znaleziony w folderze tymczasowym.`);
     }
 
-    const newFileName = `nowa_nazwa_${Date.now()}.xlsx`; // Przykładowa zmiana nazwy
-    const targetPath = path.join('D:/dane', newFileName); // Ścieżka docelowa (np. dysk D:/dane)
+    // Tworzymy nową nazwę pliku
+    const newFileName = `redmine_${redmineId}_${Date.now()}.xlsx`; // Przykład nowej nazwy
+    const targetPath = path.join('S:/dane', newFileName); // Docelowa lokalizacja pliku
 
     // Przenoszenie i zmiana nazwy pliku
-    fs.rename(file.path, targetPath, (err) => {
+    fs.rename(sourcePath, targetPath, (err) => {
         if (err) {
             console.error('Błąd podczas przenoszenia pliku:', err);
             return res.status(500).send('Nie udało się przenieść pliku.');
