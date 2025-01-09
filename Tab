@@ -1,0 +1,142 @@
+<template>
+  <div>
+    <!-- Pole wyszukiwania -->
+    <input 
+      type="text" 
+      v-model="searchQuery" 
+      placeholder="Szukaj..." 
+      class="search-input"
+    />
+
+    <!-- Tabela -->
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th 
+            v-for="(header, index) in headers" 
+            :key="index" 
+            @click="sortBy(header.key)"
+          >
+            {{ header.label }}
+            <!-- Dodanie strzałki sortowania -->
+            <span v-if="sortedColumn === header.key">
+              {{ sortDirection === 'asc' ? '⬆️' : '⬇️' }}
+            </span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(row, index) in filteredAndSortedData" :key="index">
+          <td v-for="header in headers" :key="header.key">
+            {{ row[header.key] }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script>
+import { ref, computed } from 'vue';
+
+export default {
+  setup() {
+    // Dane tabeli
+    const tableData = ref([
+      { name: 'Jan', age: 30, city: 'Warszawa' },
+      { name: 'Anna', age: 25, city: 'Kraków' },
+      { name: 'Piotr', age: 35, city: 'Poznań' },
+    ]);
+
+    // Nagłówki tabeli
+    const headers = ref([
+      { label: 'Imię', key: 'name' },
+      { label: 'Wiek', key: 'age' },
+      { label: 'Miasto', key: 'city' },
+    ]);
+
+    // Wartość wyszukiwania
+    const searchQuery = ref('');
+
+    // Stan sortowania
+    const sortedColumn = ref('');
+    const sortDirection = ref('asc'); // 'asc' lub 'desc'
+
+    // Filtrowanie i sortowanie danych
+    const filteredAndSortedData = computed(() => {
+      // Filtrowanie
+      let filtered = tableData.value.filter((row) => {
+        return Object.values(row)
+          .some((value) => value.toString().toLowerCase().includes(searchQuery.value.toLowerCase()));
+      });
+
+      // Sortowanie
+      if (sortedColumn.value) {
+        filtered.sort((a, b) => {
+          let aValue = a[sortedColumn.value];
+          let bValue = b[sortedColumn.value];
+
+          if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+          if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+          if (sortDirection.value === 'asc') {
+            return aValue > bValue ? 1 : -1;
+          } else {
+            return aValue < bValue ? 1 : -1;
+          }
+        });
+      }
+
+      return filtered;
+    });
+
+    // Funkcja sortowania
+    const sortBy = (columnKey) => {
+      if (sortedColumn.value === columnKey) {
+        // Zmiana kierunku sortowania
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+      } else {
+        // Ustaw nową kolumnę do sortowania
+        sortedColumn.value = columnKey;
+        sortDirection.value = 'asc';
+      }
+    };
+
+    return {
+      tableData,
+      headers,
+      searchQuery,
+      sortedColumn,
+      sortDirection,
+      filteredAndSortedData,
+      sortBy,
+    };
+  },
+};
+</script>
+
+<style>
+/* Stylowanie (opcjonalne) */
+.search-input {
+  margin-bottom: 10px;
+  padding: 5px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.data-table th {
+  background-color: #f2f2f2;
+}
+</style>
