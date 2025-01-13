@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wysyłanie pliku na serwer</title>
+</head>
+<body>
+  <h1>Wyślij plik PDF na serwer</h1>
+
+  <!-- Formularz do przesyłania pliku -->
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label for="fileInput">Wybierz plik PDF:</label>
+    <input type="file" id="fileInput" name="file" accept=".pdf" required>
+    <button type="submit">Wyślij</button>
+  </form>
+
+  <!-- Sekcja wyników -->
+  <div id="response"></div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const responseDiv = document.getElementById('response');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); // Zapobiega przeładowaniu strony
+
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        responseDiv.textContent = 'Nie wybrano pliku!';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('http://localhost:3000/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Błąd serwera: ${response.status}`);
+        }
+
+        const result = await response.json();
+        responseDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+      } catch (error) {
+        responseDiv.textContent = `Wystąpił błąd: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
