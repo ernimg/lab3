@@ -1,0 +1,140 @@
+const express = require('express');
+const multer = require('multer');
+const { readFile } = require('fs/promises');
+const { unlinkSync } = require('fs');
+const pdfParse = require('pdf-parse');
+const { fromPath } = require('pdf2pic');
+const Tesseract = require('tesseract.js');
+const sharp = require('sharp');
+const path = require('path');
+
+const app = express();
+const upload = multer({ dest: 'uploads/' }); // Tymczasowy katalog na pliki
+
+// Ustawienie katalogu dla plików statycznych (HTML, CSS, JS)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Endpoint do obsługi plików PDF z opcjonalnym wyszukiwaniem
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send('Nie przesłano pliku.');
+    }
+
+    const filePath = req.file.path;
+    const searchTerm = req.query.search || ''; // Pobierz opcjonalne zapytanie do wyszukiwania
+
+    // Krok 1: Sprawdzenie, czy PDF zawiera warstwę tekstową
+    const fileBuffer = await readFile(filePath);
+    const pdfData = await pdfParse(fileBuffer);
+
+    if (pdfData.text.trim()) {
+      // Jeśli PDF zawiera tekst, sprawdź wyszukiwanie
+      const fullText = pdfData.text;
+      unlinkSync(filePath); // Usuń tymczasowy plik
+
+      if (searchTerm) {
+        // Wyszukiwanie fragmentów zawierających zapytanie
+        const matches = searchInText(fullText, searchTerm);
+        return res.json({
+          method: 'text',
+          search: searchTerm,
+          matches,
+        });
+      }
+
+      return res.json({
+        method: 'text',
+        content: fullText,
+      });
+    }
+
+    // Krok 2: Jeśli PDF nie zawiera tekstu, użyj OCR
+    const pdfToImage = fromPath(filePath, {
+      density: 300, // DPI (rozdzielczość obrazu)
+      savePath: './output',
+      format: 'png',
+    });
+
+    const pageCount = pdfData.numpages;
+    const ocrResults = [];
+
+    for (let i = 1; i <= pageCount; i++) {
+      // Konwersja strony PDF na obraz
+      const imageResult = await pdfToImage(i);
+
+      // Popraw jakość obrazu za pomocą Sharp
+      const processedImagePath = `./output/page-${i}-processed.png`;
+      await sharp(imageResult.path)
+        .grayscale()
+        .threshold(128) // Binarization
+        .toFile(processedImagePath);
+
+      // Analiza OCR na przetworzonym obrazie
+      const ocrResult = await Tesseract.recognize(processedImagePath, 'eng', {
+        logger: (info) => console.log(info), // Podgląd postępu OCR
+        psm: 6, // Tryb analizy bloku tekstu
+      });
+
+      ocrResults.push({
+        page: i,
+        text: ocrResult.data.text,
+      });
+
+      // Usuń obrazy po przetworzeniu
+      unlinkSync(imageResult.path);
+      unlinkSync(processedImagePath);
+    }
+
+    unlinkSync(filePath); // Usuń tymczasowy plik PDF
+
+    if (searchTerm) {
+      // Wyszukiwanie fragmentów w wynikach OCR
+      const matches = ocrResults
+        .map((page) => ({
+          page: page.page,
+          matches: searchInText(page.text, searchTerm),
+        }))
+        .filter((page) => page.matches.length > 0); // Zachowaj tylko strony z dopasowaniami
+
+      return res.json({
+        method: 'ocr',
+        search: searchTerm,
+        matches,
+      });
+    }
+
+    res.json({
+      method: 'ocr',
+      content: ocrResults,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Wystąpił błąd podczas przetwarzania pliku.');
+  }
+});
+
+// Funkcja wyszukiwania fragmentów w tekście
+function searchInText(text, searchTerm) {
+  const lowerText = text.toLowerCase();
+  const lowerSearch = searchTerm.toLowerCase();
+
+  // Szukaj wszystkich wystąpień frazy i zwróć ich otoczenie
+  const matches = [];
+  let index = lowerText.indexOf(lowerSearch);
+
+  while (index !== -1) {
+    const start = Math.max(0, index - 30); // Pobierz 30 znaków przed frazą
+    const end = Math.min(lowerText.length, index + searchTerm.length + 30); // Pobierz 30 znaków po frazie
+    matches.push(text.substring(start, end).trim());
+    index = lowerText.indexOf(lowerSearch, index + 1); // Szukaj dalej
+  }
+
+  return matches;
+}
+
+// Uruchom serwer
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Serwer działa na http://localhost:${PORT}`);
+});
