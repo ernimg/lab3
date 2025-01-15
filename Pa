@@ -67,3 +67,80 @@ export default {
   },
 };
 </script>
+
+
+
+<template>
+  <nav aria-label="Page navigation example">
+    <ul class="pagination justify-content-end">
+      <!-- Przycisk "Previous" -->
+      <li class="page-item" :class="{ disabled: currentPage.value === 1 }">
+        <a class="page-link" href="#" @click.prevent="changePage(currentPage.value - 1)">Previous</a>
+      </li>
+
+      <!-- Widoczne numery stron -->
+      <li
+        v-for="page in visiblePages"
+        :key="page"
+        class="page-item"
+        :class="{ active: currentPage.value === page }"
+      >
+        <a class="page-link" href="#" @click.prevent="changePage(page)">{{ page }}</a>
+      </li>
+
+      <!-- Przycisk "Next" -->
+      <li class="page-item" :class="{ disabled: currentPage.value === totalPages.value }">
+        <a class="page-link" href="#" @click.prevent="changePage(currentPage.value + 1)">Next</a>
+      </li>
+    </ul>
+  </nav>
+</template>
+
+<script>
+import { ref, computed } from "vue";
+
+export default {
+  setup() {
+    // Dane paginacji
+    const totalPages = ref(29); // Liczba stron
+    const currentPage = ref(1); // Aktualna strona
+    const maxVisiblePages = ref(10); // Maksymalna liczba widocznych przycisków
+
+    // Widoczne numery stron
+    const visiblePages = computed(() => {
+      const half = Math.floor(maxVisiblePages.value / 2);
+
+      let start = Math.max(currentPage.value - half, 1);
+      let end = Math.min(start + maxVisiblePages.value - 1, totalPages.value);
+
+      if (end - start + 1 < maxVisiblePages.value) {
+        start = Math.max(end - maxVisiblePages.value + 1, 1);
+      }
+
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    });
+
+    // Funkcja zmiany strony
+    const changePage = (page) => {
+      if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page;
+        loadPageData();
+      }
+    };
+
+    // Funkcja ładowania danych dla danej strony
+    const loadPageData = () => {
+      console.log(`Ładowanie danych dla strony ${currentPage.value}`);
+      // Tutaj możesz wywołać API, aby pobrać dane dla bieżącej strony
+    };
+
+    return {
+      totalPages,
+      currentPage,
+      maxVisiblePages,
+      visiblePages,
+      changePage,
+    };
+  },
+};
+</script>
