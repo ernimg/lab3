@@ -1,0 +1,69 @@
+<template>
+  <nav aria-label="Page navigation example">
+    <ul class="pagination justify-content-end">
+      <!-- Przycisk "Previous" -->
+      <li class="page-item" :class="{ disabled: pagination.currentPages === 1 }">
+        <a class="page-link" href="#" @click.prevent="changePage(pagination.currentPages - 1)">Previous</a>
+      </li>
+
+      <!-- Widoczne numery stron -->
+      <li
+        v-for="page in visiblePages"
+        :key="page"
+        class="page-item"
+        :class="{ active: pagination.currentPages === page }"
+      >
+        <a class="page-link" href="#" @click.prevent="changePage(page)">{{ page }}</a>
+      </li>
+
+      <!-- Przycisk "Next" -->
+      <li class="page-item" :class="{ disabled: pagination.currentPages === pagination.totalPages }">
+        <a class="page-link" href="#" @click.prevent="changePage(pagination.currentPages + 1)">Next</a>
+      </li>
+    </ul>
+  </nav>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      pagination: {
+        totalCount: 2864,
+        totalPages: 29,
+        currentPages: 1,
+        pageSize: 100,
+      },
+      maxVisiblePages: 10, // Maksymalna liczba widocznych przycisków
+    };
+  },
+  computed: {
+    visiblePages() {
+      const { currentPages, totalPages } = this.pagination;
+      const half = Math.floor(this.maxVisiblePages / 2);
+
+      let start = Math.max(currentPages - half, 1);
+      let end = Math.min(start + this.maxVisiblePages - 1, totalPages);
+
+      // Dostosowanie początku, jeśli liczba stron jest mniejsza niż `maxVisiblePages`
+      if (end - start + 1 < this.maxVisiblePages) {
+        start = Math.max(end - this.maxVisiblePages + 1, 1);
+      }
+
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    },
+  },
+  methods: {
+    changePage(page) {
+      if (page >= 1 && page <= this.pagination.totalPages) {
+        this.pagination.currentPages = page;
+        this.loadPageData();
+      }
+    },
+    loadPageData() {
+      console.log(`Ładowanie danych dla strony ${this.pagination.currentPages}`);
+      // Tutaj możesz wywołać API, aby pobrać dane dla danej strony
+    },
+  },
+};
+</script>
